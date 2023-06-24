@@ -1,4 +1,5 @@
 'use strict'
+const { get } = require('axios')
 const { promises: {readFile} } = require("fs")
 
 class Handler {
@@ -46,9 +47,21 @@ class Handler {
     return finalText.join('\n')
   }
 
+  async getImageBuffer(imageUrl) {
+    const response = await get(imageUrl, {
+      responseType: 'arraybuffer'
+    })
+
+    const buffer = Buffer.from(response.data, 'base64')
+
+    return buffer
+  }
+
   async main(event) {
     try {
-      const imgBuffer = await readFile('./images/cat.jpeg')
+      const { imageUrl } = event.queryStringParameters
+      // const imgBuffer = await readFile('./images/cat.jpeg')
+      const imgBuffer = await this.getImageBuffer(imageUrl)
       const { names, workingItems } = await this.detectImageLabels(imgBuffer)
       const texts = await this.translateText(names)
 
