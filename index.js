@@ -2,8 +2,21 @@
 const { promises: {readFile} } = require("fs")
 
 class Handler {
-  constructor({rekoSvc}) {
+  constructor({rekoSvc, translatorSvc}) {
     this.rekoSvc = rekoSvc
+    this.translatorSvc = translatorSvc
+  }
+
+  async translateText(text) {
+    const params = {
+      SourceLanguageCode: 'en',
+      TargetLanguageCode: 'pt',
+      Text: text
+    }
+
+    const { TranslatedText } = await this.translatorSvc.translateText(params).promise()
+
+    return TranslatedText.split(' e ')
   }
 
   async detectImageLabels(buffer) {
@@ -20,12 +33,30 @@ class Handler {
     return {names, workingItems}
   }
 
+  formatTextResults(texts, workingItems) {
+    const finalText = []
+    for(const indexText in texts) {
+      const nameInPortuguese = texts[indexText]
+      const confidence = workingItems[indexText].Confidence
+      finalText.push(
+        `${confidence.toFixed(2)}% de ser do tipo ${nameInPortuguese}`
+      )
+    }
+
+    return finalText.join('\n')
+  }
+
   async main(event) {
     try {
       const imgBuffer = await readFile('./images/cat.jpeg')
       const { names, workingItems } = await this.detectImageLabels(imgBuffer)
+      const texts = await this.translateText(names)
+
+      const finalText = this.formatTextResults(texts, workingItems)
+
       return {
-        names, workingItems
+        statusCode: 200,
+        body: `A imagem tem\n`.concat(finalText)
       }
     } catch (error) {
       console.log('Error***', error?.stack || error)
@@ -38,10 +69,12 @@ class Handler {
 }
 
 const aws = require('aws-sdk')
+const translator = new aws.Translate()
 const rekognition = new aws.Rekognition()
 
 const handler = new Handler({
   rekoSvc: rekognition,
+  translatorSvc: translator
 })
 
 module.exports.main = handler.main.bind(handler)
