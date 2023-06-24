@@ -6,5 +6,9 @@ provider:
   runtime: nodejs18.x
 
 functions:
-  function1:
-    handler: index.handler
+  img-analysis:
+    handler: index.main
+  events:
+    - http:
+        path: analyse
+        method: get
